@@ -8,10 +8,24 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_CODENAME = process.env.ADMIN_CODENAME || "kasalidamilola123";
 
 // ── Firebase init ─────────────────────────────────────────────
-const serviceAccount = JSON.parse(process.env.FIREBASE_KEY);
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+let serviceAccount;
+try {
+  serviceAccount = JSON.parse(process.env.FIREBASE_KEY);
+  console.log("✅ Firebase key parsed, project_id:", serviceAccount.project_id);
+} catch (e) {
+  console.error("❌ Failed to parse FIREBASE_KEY:", e.message);
+  console.error("FIREBASE_KEY present:", !!process.env.FIREBASE_KEY);
+}
+
+try {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+  console.log("✅ Firebase admin initialized");
+} catch (e) {
+  console.error("❌ Firebase admin init failed:", e.message);
+}
+
 const db = admin.firestore();
 const snapshotsCol = db.collection("snapshots");
 
@@ -140,14 +154,12 @@ const server = http.createServer(async (req, res) => {
   const isAdmin = codename === ADMIN_CODENAME;
 
   try {
-    // GET /history
     if (req.method === "GET" && u.pathname === "/history") {
       const h = await getHistory();
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(h)); return;
     }
 
-    // GET /snapshot/:id
     if (req.method === "GET" && u.pathname.startsWith("/snapshot/")) {
       const id = u.pathname.split("/")[2];
       const snap = await getSnapshot(id);
@@ -156,11 +168,9 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify(snap)); return;
     }
 
-    // DELETE /snapshot/:id
     if (req.method === "DELETE" && u.pathname.startsWith("/snapshot/")) {
       const id = u.pathname.split("/")[2];
       if (id === "__test__") {
-        // codename verification probe
         if (!isAdmin) { res.writeHead(403); res.end("Forbidden"); return; }
         res.writeHead(404); res.end("Not found"); return;
       }
@@ -169,7 +179,6 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200); res.end("Deleted"); return;
     }
 
-    // DELETE /domain/:domain
     if (req.method === "DELETE" && u.pathname.startsWith("/domain/")) {
       if (!isAdmin) { res.writeHead(403); res.end("Forbidden"); return; }
       const domain = decodeURIComponent(u.pathname.split("/")[2]);
@@ -177,7 +186,6 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200); res.end("Deleted"); return;
     }
 
-    // DELETE /snapshots (bulk)
     if (req.method === "DELETE" && u.pathname === "/snapshots") {
       if (!isAdmin) { res.writeHead(403); res.end("Forbidden"); return; }
       let body = "";
@@ -192,10 +200,6 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // Serve static files
-    // /        → peekaboo.html (landing page)
-    // /cast     → index.html   (TextCast viewer)
-    // anything else → file in viewer folder
     let serveFile;
     if (u.pathname === "/") {
       serveFile = path.join(__dirname, "../viewer/peekaboo.html");
@@ -250,14 +254,20 @@ wss.on("connection", (ws, req) => {
         const msg = JSON.parse(raw);
         if (msg.type === "text") {
           const processed = processText(msg.text);
+          console.log(`📨 Text received from ${msg.url} — ${processed.length} chars`);
+          console.log("💾 Attempting Firestore save...");
           const snap = await addSnapshot(processed, msg.url);
+          console.log("✅ Snapshot saved, id:", snap.id);
           lastSnap = { text: processed, url: msg.url, id: snap.id, timestamp: snap.timestamp };
           const payload = JSON.stringify({ type: "text", text: processed, url: msg.url, id: snap.id, timestamp: snap.timestamp });
           let sent = 0;
           viewers.forEach(v => { if (v.readyState === 1) { v.send(payload); sent++; } });
-          console.log(`Saved + broadcast to ${sent} viewer(s) — ${processed.length} chars from ${msg.url}`);
+          console.log(`📡 Broadcast to ${sent} viewer(s)`);
         }
-      } catch (e) { console.error("Message error:", e.message); }
+      } catch (e) {
+        console.error("❌ Message handler error:", e.message);
+        console.error("❌ Full error stack:", e.stack);
+      }
     });
     ws.on("close", () => {
       console.log("Sender disconnected");
