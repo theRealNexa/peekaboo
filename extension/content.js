@@ -4,7 +4,7 @@ let ws = null;
 let interval = null;
 let lastText = '';
 let sharing = false;
-let serverUrl = 'ws://localhost:3000?role=sender';
+let serverUrl = 'wss://peekaboo-1wbr.onrender.com?role=sender';
 
 // Load saved server URL and sharing state
 chrome.storage.local.get(['serverUrl', 'sharing'], (data) => {
