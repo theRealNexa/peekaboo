@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">TEXT<span>CAST</span></div>
+  <div class="ws-badge">
+    <div class="ws-dot" id="ws-dot"></div>
+    <span id="ws-label">—</span>
+  </div>
+</div>
+
+<div class="body">
+  <button class="share-btn" id="share-btn">▶ Start Sharing</button>
+  <div class="status-text" id="status-text">Not sharing</div>
+
+  <div class="divider"></div>
+
+  <div class="field">
+    <label>Server WebSocket URL</label>
+    <input type="text" id="server-url" placeholder="ws://localhost:3000?role=sender" />
+  </div>
+  <button class="save-btn" id="save-btn">Save URL</button>
+
+  <div class="info">Text is captured every 3 seconds<br/>and broadcast to all viewers</div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

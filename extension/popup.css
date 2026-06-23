@@ -1,0 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  width: 280px;
+  background: #0a0a0f;
+  color: #e8e8f0;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}
+
+.header {
+  padding: 16px;
+  border-bottom: 1px solid #1e1e2e;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 14px;
+  color: #7c6af7;
+}
+.logo span { color: #6b6b80; font-weight: 400; }
+
+.ws-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: #1e1e2e;
+  color: #6b6b80;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.ws-dot { width: 6px; height: 6px; border-radius: 50%; background: #3a3a4a; }
+.ws-dot.on { background: #3dffa0; box-shadow: 0 0 4px #3dffa0; }
+.ws-dot.err { background: #ff5f6d; }
+
+.body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+.share-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 8px;
+  border: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #7c6af7;
+  color: #fff;
+}
+.share-btn:hover { background: #6a58e0; transform: translateY(-1px); }
+.share-btn.active { background: #ff5f6d; }
+.share-btn.active:hover { background: #e04550; }
+
+.status-text {
+  text-align: center;
+  font-size: 11px;
+  color: #6b6b80;
+  font-family: 'JetBrains Mono', monospace;
+  min-height: 16px;
+}
+.status-text.live { color: #3dffa0; }
+
+.field label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #3a3a4a;
+  margin-bottom: 5px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.field input {
+  width: 100%;
+  background: #13131a;
+  border: 1px solid #1e1e2e;
+  color: #e8e8f0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.field input:focus { border-color: #7c6af7; }
+
+.save-btn {
+  width: 100%;
+  padding: 8px;
+  background: #13131a;
+  border: 1px solid #1e1e2e;
+  color: #6b6b80;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.save-btn:hover { border-color: #7c6af7; color: #7c6af7; }
+
+.divider { height: 1px; background: #1e1e2e; margin: 4px 0; }
+
+.info {
+  font-size: 11px;
+  color: #3a3a4a;
+  line-height: 1.6;
+  text-align: center;
+}

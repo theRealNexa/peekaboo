@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TextCast</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+    :root {
+      --bg: #080810;
+      --surface: #0f0f1a;
+      --surface2: #14141f;
+      --border: #1c1c2e;
+      --border-bright: #2a2a42;
+      --red: #e63946;
+      --red-dim: #3d0f13;
+      --red-glow: rgba(230,57,70,0.15);
+      --red-glow-strong: rgba(230,57,70,0.3);
+      --purple: #7c6af7;
+      --purple-dim: #1e1a4a;
+      --purple-glow: rgba(124,106,247,0.12);
+      --accent: var(--red);
+      --accent-dim: var(--red-dim);
+      --text: #e8e8f0;
+      --dim: #555570;
+      --faint: #22222e;
+      --green: #00ff88;
+      --yellow: #ffd166;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Inter', sans-serif;
+      --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: var(--sans); min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Ambient background glow */
+    body::before {
+      content: '';
+      position: fixed; top: -20%; left: -10%;
+      width: 50vw; height: 50vh;
+      background: radial-gradient(ellipse, rgba(230,57,70,0.04) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+      animation: ambientShift 12s ease-in-out infinite alternate;
+    }
+    body::after {
+      content: '';
+      position: fixed; bottom: -20%; right: -10%;
+      width: 50vw; height: 50vh;
+      background: radial-gradient(ellipse, rgba(124,106,247,0.05) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+    @keyframes ambientShift {
+      0% { transform: translate(0,0); }
+      100% { transform: translate(5vw, 3vh); }
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      background: rgba(8,8,16,0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      z-index: 100;
+      animation: slideDown .6s var(--ease) both;
+    }
+    @keyframes slideDown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:translateY(0); } }
+
+    .logo {
+      font-family: var(--mono); font-weight: 700; font-size: 15px;
+      color: var(--red); letter-spacing: .08em;
+      text-shadow: 0 0 20px var(--red-glow-strong);
+      position: relative;
+    }
+    .logo::after {
+      content: '';
+      position: absolute; bottom: -2px; left: 0; width: 100%; height: 1px;
+      background: linear-gradient(90deg, var(--red), transparent);
+    }
+    .logo span { color: var(--dim); font-weight: 400; }
+
+    .header-right { display: flex; align-items: center; gap: 14px; }
+
+    .viewer-count {
+      font-family: var(--mono); font-size: 10px; color: var(--dim);
+      display: flex; align-items: center; gap: 6px;
+      border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px;
+      background: var(--surface);
+    }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); transition: all .3s; }
+    .live-dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+    .ws-pill {
+      font-family: var(--mono); font-size: 10px; color: var(--dim);
+      border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px;
+      background: var(--surface); transition: all .3s;
+    }
+    .ws-pill.live { border-color: rgba(0,255,136,.2); color: var(--green); }
+    .ws-pill.err { border-color: rgba(230,57,70,.3); color: var(--red); }
+
+    .admin-btn {
+      background: var(--surface); border: 1px solid var(--border); color: var(--dim);
+      font-size: 13px; width: 32px; height: 32px; border-radius: 6px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all .2s; position: relative; overflow: hidden;
+    }
+    .admin-btn::before {
+      content: ''; position: absolute; inset: 0;
+      background: var(--red-glow); opacity: 0; transition: opacity .2s;
+    }
+    .admin-btn:hover { border-color: var(--red); color: var(--red); }
+    .admin-btn:hover::before { opacity: 1; }
+    .admin-btn.active {
+      border-color: var(--yellow); color: var(--yellow);
+      box-shadow: 0 0 12px rgba(255,209,102,.2);
+    }
+
+    /* ── BREADCRUMB ── */
+    .breadcrumb {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 24px; border-bottom: 1px solid var(--border);
+      font-family: var(--mono); font-size: 11px; color: var(--dim);
+      flex-wrap: wrap; background: rgba(8,8,16,0.6);
+      animation: slideDown .6s .1s var(--ease) both;
+    }
+    .breadcrumb span { cursor: pointer; transition: color .15s; }
+    .breadcrumb span:hover { color: var(--red); }
+    .breadcrumb .sep { color: var(--faint); }
+    .breadcrumb .current { color: var(--text); cursor: default; }
+
+    /* ── LAYOUT ── */
+    .layout { display: flex; min-height: calc(100vh - 88px); position: relative; z-index: 1; }
+
+    /* ── LIVE PANEL ── */
+    .live-panel {
+      width: 320px; min-width: 260px; border-right: 1px solid var(--border);
+      padding: 20px 16px; display: flex; flex-direction: column; gap: 14px;
+      position: sticky; top: 88px; height: calc(100vh - 88px); overflow-y: auto;
+      background: linear-gradient(180deg, rgba(230,57,70,0.02) 0%, transparent 40%);
+      animation: slideInLeft .7s var(--ease) both;
+    }
+    @keyframes slideInLeft { from { opacity:0; transform:translateX(-24px); } to { opacity:1; transform:translateX(0); } }
+
+    .panel-label {
+      font-family: var(--mono); font-size: 9px; text-transform: uppercase;
+      letter-spacing: .15em; color: var(--dim);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .live-indicator {
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--mono); font-size: 10px; color: var(--dim);
+    }
+    .live-indicator .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); box-shadow: 0 0 6px var(--red); animation: pulse 1.5s infinite; }
+
+    .live-source {
+      font-family: var(--mono); font-size: 10px; color: var(--purple);
+      word-break: break-all; line-height: 1.5;
+      padding: 6px 8px; background: var(--purple-glow);
+      border: 1px solid rgba(124,106,247,.15); border-radius: 4px;
+      transition: all .3s;
+    }
+
+    .live-text {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      padding: 14px; font-family: var(--mono); font-size: 11px; line-height: 1.8;
+      color: var(--text); white-space: pre-wrap; word-break: break-word;
+      flex: 1; overflow-y: auto; user-select: text; min-height: 140px;
+      transition: border-color .3s;
+    }
+    .live-text.flash {
+      animation: liveFlash .6s ease-out;
+    }
+    @keyframes liveFlash {
+      0% { border-color: var(--red); box-shadow: 0 0 16px var(--red-glow-strong); }
+      100% { border-color: var(--border); box-shadow: none; }
+    }
+
+    .copy-btn {
+      background: var(--surface); border: 1px solid var(--border); color: var(--dim);
+      font-family: var(--mono); font-size: 11px; padding: 8px; border-radius: 4px;
+      cursor: pointer; transition: all .2s; width: 100%; position: relative; overflow: hidden;
+    }
+    .copy-btn::before {
+      content: ''; position: absolute; inset: 0;
+      background: var(--red-glow); transform: translateX(-100%); transition: transform .3s;
+    }
+    .copy-btn:hover { border-color: var(--red); color: var(--red); }
+    .copy-btn:hover::before { transform: translateX(0); }
+    .copy-btn span { position: relative; z-index: 1; }
+    .copy-btn.ok { border-color: var(--green); color: var(--green); }
+
+    .offline-note {
+      font-size: 11px; color: var(--red); text-align: center;
+      display: none; font-family: var(--mono);
+      padding: 6px; background: var(--red-dim); border-radius: 4px;
+      border: 1px solid rgba(230,57,70,.2);
+    }
+    .offline-note.show { display: block; animation: fadeIn .3s ease; }
+
+    /* ── MAIN ── */
+    .main {
+      flex: 1; padding: 24px; overflow-y: auto;
+      animation: slideInRight .7s var(--ease) both;
+    }
+    @keyframes slideInRight { from { opacity:0; transform:translateX(24px); } to { opacity:1; transform:translateX(0); } }
+
+    /* Search */
+    .search-wrap { margin-bottom: 18px; position: relative; }
+    .search-wrap::before {
+      content: '⌕'; position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--dim); font-size: 16px; pointer-events: none; z-index: 1;
+    }
+    .search-input {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--mono); font-size: 12px;
+      padding: 11px 14px 11px 36px; border-radius: 6px; outline: none;
+      transition: all .2s;
+    }
+    .search-input:focus {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px var(--red-glow);
+    }
+    .search-input::placeholder { color: var(--faint); }
+
+    /* Bulk bar */
+    .bulk-bar {
+      display: none; align-items: center; gap: 10px; margin-bottom: 16px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px 14px;
+      animation: fadeInUp .3s var(--ease);
+    }
+    .bulk-bar.show { display: flex; }
+    .bulk-count { font-family: var(--mono); font-size: 12px; color: var(--dim); flex: 1; }
+    .bulk-delete-btn {
+      background: var(--red-dim); border: 1px solid rgba(230,57,70,.3);
+      color: var(--red); font-family: var(--mono); font-size: 11px;
+      padding: 5px 14px; border-radius: 4px; cursor: pointer; transition: all .2s;
+    }
+    .bulk-delete-btn:hover { background: rgba(230,57,70,.2); box-shadow: 0 0 10px var(--red-glow); }
+
+    /* ── DOMAIN CARDS ── */
+    .domain-grid { display: flex; flex-direction: column; gap: 8px; }
+
+    .domain-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px; cursor: pointer;
+      display: flex; align-items: center; gap: 14px;
+      transition: border-color .2s, transform .2s, box-shadow .2s;
+      position: relative; overflow: hidden;
+      opacity: 0; transform: translateY(16px);
+      animation: cardIn .5s var(--ease) forwards;
+    }
+    .domain-card::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+      background: linear-gradient(180deg, var(--red), var(--purple));
+      transform: scaleY(0); transform-origin: bottom;
+      transition: transform .25s var(--ease);
+    }
+    .domain-card:hover { border-color: var(--border-bright); transform: translateX(4px); box-shadow: 0 4px 20px rgba(0,0,0,.3); }
+    .domain-card:hover::before { transform: scaleY(1); }
+    @keyframes cardIn { to { opacity:1; transform:translateY(0); } }
+
+    .domain-icon { font-size: 20px; flex-shrink: 0; }
+    .domain-info { flex: 1; min-width: 0; }
+    .domain-name { font-weight: 500; font-size: 14px; }
+    .domain-meta { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-top: 3px; }
+    .domain-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+    .select-cb { display: none; width: 15px; height: 15px; accent-color: var(--red); cursor: pointer; }
+    .select-cb.show { display: block; }
+
+    .del-btn {
+      display: none; background: none; border: 1px solid transparent; color: var(--red);
+      font-size: 13px; cursor: pointer; padding: 4px 6px; border-radius: 4px;
+      opacity: .5; transition: all .15s;
+    }
+    .del-btn:hover { opacity: 1; border-color: rgba(230,57,70,.3); background: var(--red-dim); }
+    .admin-mode .del-btn { display: block; }
+    .admin-mode .select-cb { display: block; }
+
+    /* Card delete animation */
+    .domain-card.deleting, .url-item.deleting {
+      animation: deleteOut .35s var(--ease) forwards;
+    }
+    @keyframes deleteOut {
+      to { opacity:0; transform:translateX(20px) scaleY(0.8); max-height:0; padding:0; margin:0; }
+    }
+
+    /* ── URL LIST ── */
+    .url-list { display: flex; flex-direction: column; gap: 6px; }
+
+    .url-item {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      padding: 13px 14px; cursor: pointer;
+      display: flex; align-items: flex-start; gap: 10px;
+      transition: border-color .2s, transform .2s;
+      opacity: 0; transform: translateY(12px);
+      animation: cardIn .4s var(--ease) forwards;
+    }
+    .url-item:hover { border-color: var(--border-bright); transform: translateX(3px); }
+    .url-item-info { flex: 1; min-width: 0; }
+    .url-path { font-family: var(--mono); font-size: 11px; color: var(--red); word-break: break-all; }
+    .url-time { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-top: 3px; }
+    .url-preview { font-size: 12px; color: var(--dim); margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ── SNAPSHOT VIEW ── */
+    .snap-meta {
+      font-family: var(--mono); font-size: 11px; color: var(--dim);
+      margin-bottom: 14px; padding: 12px 14px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      animation: fadeInUp .4s var(--ease);
+    }
+    .snap-url { color: var(--purple); word-break: break-all; margin-bottom: 4px; }
+    .snap-body {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 22px; font-family: var(--mono); font-size: 12px; line-height: 1.9;
+      color: var(--text); white-space: pre-wrap; word-break: break-word; user-select: text;
+      animation: fadeInUp .4s .1s var(--ease) both;
+    }
+    mark { background: var(--red-dim); color: var(--red); border-radius: 2px; padding: 0 2px; }
+
+    /* ── EMPTY ── */
+    .empty {
+      text-align: center; padding: 80px 20px; color: var(--dim);
+      animation: fadeIn .5s ease;
+    }
+    .empty-icon { font-size: 36px; margin-bottom: 14px; opacity: .3; }
+    .empty p { font-family: var(--mono); font-size: 12px; }
+
+    /* ── VIEW TRANSITION ── */
+    .view-enter { animation: viewEnter .35s var(--ease); }
+    @keyframes viewEnter { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+    .view-back { animation: viewBack .35s var(--ease); }
+    @keyframes viewBack { from { opacity:0; transform:translateX(-20px); } to { opacity:1; transform:translateX(0); } }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.8); backdrop-filter: blur(8px);
+      z-index: 999; align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    @keyframes fadeInUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+    .modal {
+      background: var(--surface); border: 1px solid var(--border-bright);
+      border-radius: 12px; padding: 28px; width: 320px;
+      display: flex; flex-direction: column; gap: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.6), 0 0 40px var(--red-glow);
+      animation: modalIn .3s var(--ease);
+    }
+    @keyframes modalIn { from{opacity:0;transform:scale(.92) translateY(10px)} to{opacity:1;transform:scale(1) translateY(0)} }
+
+    .modal-title { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--red); letter-spacing: .05em; }
+    .modal p { font-size: 12px; color: var(--dim); line-height: 1.6; }
+
+    .modal input {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      font-family: var(--mono); font-size: 13px; padding: 11px 12px;
+      border-radius: 5px; outline: none; width: 100%; transition: all .2s;
+      letter-spacing: .1em;
+    }
+    .modal input:focus { border-color: var(--red); box-shadow: 0 0 0 3px var(--red-glow); }
+
+    .modal-error {
+      font-family: var(--mono); font-size: 11px; color: var(--red);
+      display: none; padding: 6px 10px;
+      background: var(--red-dim); border-radius: 4px;
+    }
+    .modal-error.show { display: block; animation: shake .3s ease; }
+    @keyframes shake {
+      0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)}
+    }
+
+    .modal-btns { display: flex; gap: 8px; }
+    .modal-btn {
+      flex: 1; padding: 10px; border-radius: 5px; font-family: var(--mono);
+      font-size: 12px; cursor: pointer; transition: all .2s;
+      border: 1px solid var(--border); background: var(--bg); color: var(--dim);
+    }
+    .modal-btn:hover { border-color: var(--border-bright); color: var(--text); }
+    .modal-btn.primary {
+      background: var(--red); border-color: var(--red); color: #fff;
+      box-shadow: 0 0 16px var(--red-glow-strong);
+    }
+    .modal-btn.primary:hover { opacity: .85; box-shadow: 0 0 24px var(--red-glow-strong); }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-bright); }
+
+    /* ── MOBILE ── */
+    @media (max-width: 768px) {
+      header { padding: 12px 16px; }
+      .viewer-count { display: none; }
+
+      .layout { flex-direction: column; }
+
+      .live-panel {
+        width: 100%; min-width: unset;
+        position: relative; top: 0; height: auto;
+        border-right: none; border-bottom: 1px solid var(--border);
+        padding: 16px;
+        animation: slideDown .5s var(--ease) both;
+        max-height: 320px;
+      }
+
+      .live-text { min-height: 80px; max-height: 160px; }
+
+      .main {
+        padding: 16px;
+        animation: slideInUp .5s .1s var(--ease) both;
+      }
+      @keyframes slideInUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+      .domain-card { padding: 13px; }
+      .domain-name { font-size: 13px; }
+
+      .modal { width: calc(100vw - 32px); padding: 22px; }
+      .breadcrumb { padding: 8px 16px; }
+    }
+
+    @media (max-width: 480px) {
+      .logo { font-size: 13px; }
+      .admin-btn { width: 28px; height: 28px; font-size: 12px; }
+      .ws-pill { display: none; }
+      .snap-body { padding: 14px; font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">TEXT<span>CAST</span></div>
+  <div class="header-right">
+    <div class="viewer-count">
+      <div class="live-dot" id="live-dot"></div>
+      <span id="viewer-count-label">0 viewing</span>
+    </div>
+    <div class="ws-pill" id="ws-status">connecting...</div>
+    <button class="admin-btn" id="admin-btn" title="Admin access">🔒</button>
+  </div>
+</header>
+
+<div class="breadcrumb" id="breadcrumb">
+  <span onclick="navigate('home')">All Sites</span>
+</div>
+
+<div class="layout">
+  <div class="live-panel">
+    <div class="panel-label">Live Feed</div>
+    <div class="live-indicator">
+      <div class="dot"></div>
+      <span id="live-status">waiting for broadcast</span>
+    </div>
+    <div class="live-source" id="live-source">—</div>
+    <div class="live-text" id="live-text">No active broadcast.</div>
+    <div class="offline-note" id="offline-note">⚠ Sender offline</div>
+    <button class="copy-btn" id="copy-btn"><span>Copy text</span></button>
+  </div>
+
+  <div class="main" id="main-content">
+    <div class="search-wrap">
+      <input class="search-input" id="search-input" placeholder="Search sites..." />
+    </div>
+    <div class="bulk-bar" id="bulk-bar">
+      <span class="bulk-count" id="bulk-count">0 selected</span>
+      <button class="bulk-delete-btn" id="bulk-delete-btn">Delete selected</button>
+    </div>
+    <div id="view-container"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title">// ADMIN ACCESS</div>
+    <p>Restricted. Enter your codename to unlock administrative controls.</p>
+    <input type="password" id="codename-input" placeholder="_ _ _ _ _ _ _ _" />
+    <div class="modal-error" id="modal-error">⛔ Access denied. Invalid codename.</div>
+    <div class="modal-btns">
+      <button class="modal-btn" id="modal-cancel">Cancel</button>
+      <button class="modal-btn primary" id="modal-submit">Authenticate</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = `${location.protocol}//${location.host}`;
+const WS_URL = `ws://${location.host}?role=viewer`;
+
+let isAdmin = false;
+let history = {};
+let view = { level: 'home', domain: null, snapId: null };
+let prevLevel = null;
+let selected = new Set();
+let liveText = '';
+let searchQ = '';
+
+// ── WebSocket ──────────────────────────────────────────────────
+let ws;
+function connect() {
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    const el = document.getElementById('ws-status');
+    el.textContent = 'connected'; el.className = 'ws-pill live';
+  };
+  ws.onclose = () => {
+    const el = document.getElementById('ws-status');
+    el.textContent = 'reconnecting...'; el.className = 'ws-pill';
+    setTimeout(connect, 2000);
+  };
+  ws.onerror = () => {
+    const el = document.getElementById('ws-status');
+    el.textContent = 'error'; el.className = 'ws-pill err';
+  };
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'text') onLive(msg);
+    if (msg.type === 'offline') {
+      document.getElementById('offline-note').classList.add('show');
+      document.getElementById('live-status').textContent = 'sender offline';
+    }
+    if (msg.type === 'viewer_count') {
+      document.getElementById('viewer-count-label').textContent = msg.count + ' viewing';
+      document.getElementById('live-dot').classList.toggle('on', msg.count > 0);
+    }
+  };
+}
+
+function onLive(msg) {
+  document.getElementById('offline-note').classList.remove('show');
+  document.getElementById('live-status').textContent = 'receiving data';
+  liveText = msg.text;
+  document.getElementById('live-source').textContent = msg.url;
+  const lt = document.getElementById('live-text');
+  lt.textContent = msg.text;
+  lt.classList.remove('flash'); void lt.offsetWidth; lt.classList.add('flash');
+  loadHistory();
+}
+
+// ── History ────────────────────────────────────────────────────
+async function loadHistory() {
+  const res = await fetch(`${BASE}/history`);
+  history = await res.json();
+  render();
+}
+
+// ── Navigation ────────────────────────────────────────────────
+function navigate(level, domain, snapId) {
+  prevLevel = view.level;
+  view = { level, domain: domain || null, snapId: snapId || null };
+  selected.clear();
+  searchQ = '';
+  document.getElementById('search-input').value = '';
+  updateBreadcrumb();
+  render();
+  if (level === 'home') location.hash = '';
+  else if (level === 'domain') location.hash = `#${encodeURIComponent(domain)}`;
+  else if (level === 'snapshot') location.hash = `#${encodeURIComponent(domain)}/${snapId}`;
+}
+
+window.addEventListener('popstate', parseHash);
+function parseHash() {
+  const h = decodeURIComponent(location.hash.slice(1));
+  prevLevel = view.level;
+  if (!h) view = { level: 'home', domain: null, snapId: null };
+  else {
+    const parts = h.split('/');
+    if (parts.length === 1) view = { level: 'domain', domain: parts[0], snapId: null };
+    else view = { level: 'snapshot', domain: parts[0], snapId: parts.slice(1).join('/') };
+  }
+  selected.clear();
+  updateBreadcrumb();
+  render();
+}
+
+function updateBreadcrumb() {
+  const bc = document.getElementById('breadcrumb');
+  let html = `<span onclick="navigate('home')">All Sites</span>`;
+  if (view.domain) {
+    html += `<span class="sep">›</span><span onclick="navigate('domain','${view.domain}')">${view.domain}</span>`;
+  }
+  if (view.snapId) {
+    const snap = findSnap(view.snapId);
+    let label = view.snapId.slice(0, 28);
+    try { label = new URL(snap?.url || '').pathname.slice(0, 28) || '/'; } catch{}
+    html += `<span class="sep">›</span><span class="current">${label}</span>`;
+  }
+  bc.innerHTML = html;
+}
+
+function findSnap(id) {
+  for (const snaps of Object.values(history)) {
+    const s = snaps.find(x => x.id === id);
+    if (s) return s;
+  }
+  return null;
+}
+
+// ── Render ────────────────────────────────────────────────────
+function render() {
+  const c = document.getElementById('view-container');
+  const goingBack = prevLevel && levels.indexOf(view.level) < levels.indexOf(prevLevel);
+  const animClass = goingBack ? 'view-back' : 'view-enter';
+  const ph = { home: 'Search sites...', domain: 'Search URLs...', snapshot: 'Search in text...' };
+  document.getElementById('search-input').placeholder = ph[view.level] || 'Search...';
+  if (view.level === 'home') renderHome(c, animClass);
+  else if (view.level === 'domain') renderDomain(c, animClass);
+  else if (view.level === 'snapshot') renderSnapshot(c, animClass);
+}
+const levels = ['home','domain','snapshot'];
+
+function domainIcon(d) {
+  const m = { 'youtube.com':'▶️','google.com':'🔍','github.com':'🐙',
+    'freecodecamp.org':'🔥','stackoverflow.com':'📚','twitter.com':'🐦',
+    'x.com':'🐦','reddit.com':'🤖','wikipedia.org':'📖','studocu.com':'📝',
+    'sanfoundry.com':'💡','chatgpt.com':'🤖','claude.ai':'🧠','shopify.com':'🛍' };
+  return m[d] || '🌐';
+}
+
+function renderHome(c, animClass) {
+  const domains = Object.keys(history).filter(d =>
+    !searchQ || d.includes(searchQ.toLowerCase())
+  );
+  if (!domains.length) {
+    c.className = animClass;
+    c.innerHTML = `<div class="empty"><div class="empty-icon">📡</div><p>No history yet. Start sharing to see data here.</p></div>`;
+    return;
+  }
+  const adminClass = isAdmin ? 'admin-mode' : '';
+  c.className = animClass;
+  c.innerHTML = `<div class="domain-grid ${adminClass}">` +
+    domains.map((d, i) => {
+      const snaps = history[d];
+      const last = new Date(snaps[0].timestamp).toLocaleString();
+      return `<div class="domain-card" style="animation-delay:${i * 50}ms" onclick="navigate('domain','${d}')">
+        <div class="domain-icon">${domainIcon(d)}</div>
+        <div class="domain-info">
+          <div class="domain-name">${d}</div>
+          <div class="domain-meta">${snaps.length} snapshot${snaps.length!==1?'s':''} &nbsp;·&nbsp; ${last}</div>
+        </div>
+        <div class="domain-actions" onclick="event.stopPropagation()">
+          <input type="checkbox" class="select-cb ${isAdmin?'show':''}" data-domain="${d}" onchange="toggleSelectDomain('${d}',this.checked)" />
+          ${isAdmin ? `<button class="del-btn" onclick="deleteDomain('${d}')">🗑</button>` : ''}
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+  updateBulkBar();
+}
+
+function renderDomain(c, animClass) {
+  const snaps = (history[view.domain] || []).filter(s =>
+    !searchQ || s.url.toLowerCase().includes(searchQ.toLowerCase()) || (s.preview||'').toLowerCase().includes(searchQ.toLowerCase())
+  );
+  if (!snaps.length) {
+    c.className = animClass;
+    c.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><p>No snapshots found.</p></div>`;
+    return;
+  }
+  const adminClass = isAdmin ? 'admin-mode' : '';
+  c.className = animClass;
+  c.innerHTML = `<div class="url-list ${adminClass}">` +
+    snaps.map((s, i) => {
+      let p = s.url;
+      try { p = new URL(s.url).pathname + new URL(s.url).search; } catch{}
+      return `<div class="url-item" style="animation-delay:${i * 40}ms" onclick="navigate('snapshot','${view.domain}','${s.id}')">
+        <div onclick="event.stopPropagation()" style="padding-top:2px">
+          ${isAdmin ? `<input type="checkbox" class="select-cb show" data-id="${s.id}" onchange="toggleSelect('${s.id}',this.checked)" />` : ''}
+        </div>
+        <div class="url-item-info">
+          <div class="url-path">${p.slice(0,80)}${p.length>80?'…':''}</div>
+          <div class="url-time">${new Date(s.timestamp).toLocaleString()}</div>
+          <div class="url-preview">${(s.preview||'').slice(0,100)}</div>
+        </div>
+        ${isAdmin ? `<button class="del-btn" style="display:block" onclick="event.stopPropagation();deleteSnap('${s.id}')">🗑</button>` : ''}
+      </div>`;
+    }).join('') + '</div>';
+  updateBulkBar();
+}
+
+async function renderSnapshot(c, animClass) {
+  let snap = findSnap(view.snapId);
+  if (!snap || !snap.text || snap.text.length < 150) {
+    const res = await fetch(`${BASE}/snapshot/${view.snapId}`);
+    if (res.ok) snap = await res.json();
+  }
+  if (!snap) {
+    c.className = animClass;
+    c.innerHTML = `<div class="empty"><p>Snapshot not found.</p></div>`;
+    return;
+  }
+  c.className = animClass;
+  let bodyHtml = '';
+  if (searchQ) {
+    const esc = searchQ.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const highlighted = (snap.text||'').replace(new RegExp(esc,'gi'), m => `<mark>${m}</mark>`);
+    bodyHtml = `<div class="snap-body">${highlighted}</div>`;
+  }
+  c.innerHTML = `
+    <div class="snap-meta">
+      <div class="snap-url">${snap.url}</div>
+      <div style="margin-top:4px">${new Date(snap.timestamp).toLocaleString()} &nbsp;·&nbsp; ${(snap.text||'').length.toLocaleString()} chars</div>
+    </div>
+    ${bodyHtml || '<div class="snap-body"></div>'}`;
+  if (!searchQ) c.querySelector('.snap-body').textContent = snap.text || '';
+}
+
+// ── Search ────────────────────────────────────────────────────
+document.getElementById('search-input').addEventListener('input', e => {
+  searchQ = e.target.value.trim(); render();
+});
+
+// ── Admin ─────────────────────────────────────────────────────
+document.getElementById('admin-btn').addEventListener('click', () => {
+  if (isAdmin) {
+    isAdmin = false;
+    const btn = document.getElementById('admin-btn');
+    btn.classList.remove('active'); btn.textContent = '🔒';
+    render(); return;
+  }
+  document.getElementById('modal').classList.add('show');
+  document.getElementById('codename-input').value = '';
+  document.getElementById('modal-error').classList.remove('show');
+  setTimeout(() => document.getElementById('codename-input').focus(), 150);
+});
+
+document.getElementById('codename-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitCodename(); });
+document.getElementById('modal-cancel').addEventListener('click', closeModal);
+document.getElementById('modal-submit').addEventListener('click', submitCodename);
+
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal')) closeModal();
+});
+
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+async function submitCodename() {
+  const code = document.getElementById('codename-input').value.trim();
+  const res = await fetch(`${BASE}/snapshot/__test__`, { method: 'DELETE', headers: { 'x-codename': code } });
+  if (res.status === 404 || res.status === 200) {
+    isAdmin = true;
+    sessionStorage.setItem('tc_code', code);
+    const btn = document.getElementById('admin-btn');
+    btn.classList.add('active'); btn.textContent = '🔓';
+    closeModal(); render();
+  } else {
+    document.getElementById('modal-error').classList.add('show');
+    document.getElementById('codename-input').value = '';
+    document.getElementById('codename-input').focus();
+  }
+}
+
+// ── Select & Bulk ─────────────────────────────────────────────
+function toggleSelect(id, checked) { checked ? selected.add(id) : selected.delete(id); updateBulkBar(); }
+function toggleSelectDomain(domain, checked) {
+  (history[domain]||[]).forEach(s => checked ? selected.add(s.id) : selected.delete(s.id));
+  updateBulkBar();
+}
+function updateBulkBar() {
+  const bar = document.getElementById('bulk-bar');
+  if (isAdmin && selected.size > 0) {
+    bar.classList.add('show');
+    document.getElementById('bulk-count').textContent = `${selected.size} selected`;
+  } else { bar.classList.remove('show'); }
+}
+
+document.getElementById('bulk-delete-btn').addEventListener('click', async () => {
+  if (!selected.size || !confirm(`Delete ${selected.size} snapshot(s)?`)) return;
+  await fetch(`${BASE}/snapshots`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', 'x-codename': getCode() },
+    body: JSON.stringify({ ids: [...selected] })
+  });
+  selected.clear(); await loadHistory();
+});
+
+async function deleteSnap(id) {
+  if (!confirm('Delete this snapshot?')) return;
+  const el = event?.target?.closest?.('.url-item');
+  if (el) { el.classList.add('deleting'); await new Promise(r => setTimeout(r, 350)); }
+  await fetch(`${BASE}/snapshot/${id}`, { method: 'DELETE', headers: { 'x-codename': getCode() } });
+  await loadHistory();
+  if (view.level === 'snapshot') navigate('domain', view.domain);
+}
+
+async function deleteDomain(domain) {
+  if (!confirm(`Delete ALL snapshots for ${domain}?`)) return;
+  await fetch(`${BASE}/domain/${encodeURIComponent(domain)}`, { method: 'DELETE', headers: { 'x-codename': getCode() } });
+  await loadHistory();
+}
+
+function getCode() { return sessionStorage.getItem('tc_code') || document.getElementById('codename-input').value || ''; }
+
+// ── Copy ─────────────────────────────────────────────────────
+document.getElementById('copy-btn').addEventListener('click', () => {
+  if (!liveText) return;
+  navigator.clipboard.writeText(liveText).then(() => {
+    const b = document.getElementById('copy-btn');
+    b.querySelector('span').textContent = 'Copied!'; b.classList.add('ok');
+    setTimeout(() => { b.querySelector('span').textContent = 'Copy text'; b.classList.remove('ok'); }, 2000);
+  });
+});
+
+// ── Restore admin session ────────────────────────────────────
+const savedCode = sessionStorage.getItem('tc_code');
+if (savedCode) {
+  fetch(`${BASE}/snapshot/__test__`, { method: 'DELETE', headers: { 'x-codename': savedCode } })
+    .then(r => {
+      if (r.status === 404 || r.status === 200) {
+        isAdmin = true;
+        const btn = document.getElementById('admin-btn');
+        btn.classList.add('active'); btn.textContent = '🔓';
+        render();
+      }
+    });
+}
+
+// ── Init ─────────────────────────────────────────────────────
+connect();
+loadHistory();
+parseHash();
+
+window.navigate = navigate;
+window.closeModal = closeModal;
+window.submitCodename = submitCodename;
+window.deleteSnap = deleteSnap;
+window.deleteDomain = deleteDomain;
+window.toggleSelect = toggleSelect;
+window.toggleSelectDomain = toggleSelectDomain;
+</script>
+</body>
+</html>
